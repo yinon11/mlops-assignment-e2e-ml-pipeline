@@ -138,6 +138,9 @@ uv run python scripts/run_evaluate_pipeline.py --skip-agent --run-id demo-slice-
 
 ## Notes / trade-offs
 
+- Retry/timeout policy: every task retries twice with exponential backoff (1 min base);
+  `run_agent` has a 2 h execution timeout, `run_eval` 1 h, `prepare_run` and
+  `summarize_and_log` 15 min each.
 - Agent/eval still use `uv run` subprocesses (not `DockerOperator` yet). SWE-bench
   still launches per-instance Docker environments; compose mounts the host Docker socket.
 - Batch CLI has no `--cost-limit` (only `swebench-single`); the param is logged for provenance.

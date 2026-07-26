@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from airflow.decorators import dag, task
@@ -33,6 +33,11 @@ from pipeline.run_helpers import (  # noqa: E402
     schedule=None,
     catchup=False,
     tags=["mlops", "swe-bench", "mini-swe-agent"],
+    default_args={
+        "retries": 2,
+        "retry_delay": timedelta(minutes=1),
+        "retry_exponential_backoff": True,
+    },
     params={
         "split": Param("test", type="string", description="Dataset split"),
         "subset": Param("verified", type="string", description="SWE-bench subset: verified|lite|full"),
@@ -48,7 +53,7 @@ from pipeline.run_helpers import (  # noqa: E402
     },
 )
 def evaluate_agent():
-    @task
+    @task(execution_timeout=timedelta(minutes=15))
     def prepare_run(**context) -> dict:
         params = context["params"]
         run_config = build_run_config(params, PROJECT_ROOT)
@@ -56,14 +61,14 @@ def evaluate_agent():
         print(f"Prepared run dir: {run_dir}")
         return {**run_config, "run_dir": str(run_dir)}
 
-    @task
+    @task(execution_timeout=timedelta(hours=2))
     def run_agent(run_config: dict) -> dict:
         run_dir = Path(run_config["run_dir"])
         preds_path = run_agent_batch(run_config, run_dir)
         print(f"Agent finished. preds={preds_path}")
         return {**run_config, "preds_path": str(preds_path)}
 
-    @task
+    @task(execution_timeout=timedelta(hours=1))
     def run_eval(run_config: dict) -> dict:
         run_dir = Path(run_config["run_dir"])
         preds_path = Path(run_config["preds_path"])
@@ -71,7 +76,7 @@ def evaluate_agent():
         print(f"Eval finished. eval_dir={eval_dir}")
         return run_config
 
-    @task
+    @task(execution_timeout=timedelta(minutes=15))
     def summarize_and_log(run_config: dict) -> dict:
         run_dir = Path(run_config["run_dir"])
         eval_dir = run_dir / "run-eval"
