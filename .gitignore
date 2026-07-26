@@ -10,3 +10,17 @@ __pycache__
 
 mini-swe-agent/
 SWE-bench/
+
+# Keep sample completed runs for submission; ignore ad-hoc local runs.
+/runs/*
+!/runs/demo-slice-0-1/
+!/runs/demo-slice-0-1/**
+!/runs/airflow-demo-0-1/
+!/runs/airflow-demo-0-1/**
+
+/mlruns/
+/mlartifacts/
+/mlflow.db
+AGENT_CONTEXT.md
+cloud-init.yaml
+*.traj.json
