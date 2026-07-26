@@ -107,6 +107,7 @@ instance `astropy__astropy-12907`.
 |--------|-----|----------|-----------|
 | `demo-slice-0-1` | CLI | **1 / 1** | `runs/demo-slice-0-1/` |
 | `airflow-demo-0-1` | Airflow DAG `evaluate_agent` (`manual__2026-07-25T11:32:28.705836+00:00`, **success**) | **1 / 1** | `runs/airflow-demo-0-1/` |
+| `local-demo-0-1` | Airflow DAG `evaluate_agent`, run locally (`manual__2026-07-26T05:03:57.173352+00:00`, **success**, 00:03:22) | **1 / 1** | `runs/local-demo-0-1/` |
 
 MLflow experiment: `evaluate-agent`.  
 Example MLflow run id (CLI): `c64283edd6724447ae9348ad1666186f`.
@@ -116,8 +117,14 @@ not the number of instances we evaluated (`submitted_instances` / `completed_ins
 
 ## Screenshots
 
-See `screenshots/` (add `airflow_dag.png`, `mlflow_runs.png` when the stack is up).
-Compose brings both UIs up for capturing those.
+![Airflow DAG run](screenshots/airflow_dag.png)
+
+Airflow graph view of run `local-demo-0-1`: all four tasks green, run state **Success**.
+
+![MLflow runs](screenshots/mlflow_runs.png)
+
+MLflow experiment `evaluate-agent` with three runs and their `resolve_rate` /
+`resolved_instances` / `unresolved_instances` metrics.
 
 ## Rerun by run-id
 
