@@ -60,7 +60,7 @@ def main() -> int:
     if not args.skip_eval:
         run_swebench_eval(run_config, preds_path, run_dir)
 
-    metrics = collect_metrics(run_dir / "run-eval")
+    metrics = collect_metrics(run_dir / "run-eval", run_id=run_config["run_id"])
     (run_dir / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
     write_manifest(run_dir, run_config, metrics)
 

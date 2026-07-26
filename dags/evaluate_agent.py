@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -10,7 +11,7 @@ from pathlib import Path
 from airflow.decorators import dag, task
 from airflow.models.param import Param
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(os.environ.get("MLOPS_PROJECT_ROOT") or Path(__file__).resolve().parents[1])
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -53,18 +54,18 @@ def evaluate_agent():
         run_config = build_run_config(params, PROJECT_ROOT)
         run_dir = prepare_run_dir(run_config)
         print(f"Prepared run dir: {run_dir}")
-        return run_config
+        return {**run_config, "run_dir": str(run_dir)}
 
     @task
     def run_agent(run_config: dict) -> dict:
-        run_dir = Path(run_config["project_root"]) / "runs" / run_config["run_id"]
+        run_dir = Path(run_config["run_dir"])
         preds_path = run_agent_batch(run_config, run_dir)
         print(f"Agent finished. preds={preds_path}")
         return {**run_config, "preds_path": str(preds_path)}
 
     @task
     def run_eval(run_config: dict) -> dict:
-        run_dir = Path(run_config["project_root"]) / "runs" / run_config["run_id"]
+        run_dir = Path(run_config["run_dir"])
         preds_path = Path(run_config["preds_path"])
         eval_dir = run_swebench_eval(run_config, preds_path, run_dir)
         print(f"Eval finished. eval_dir={eval_dir}")
@@ -72,9 +73,9 @@ def evaluate_agent():
 
     @task
     def summarize_and_log(run_config: dict) -> dict:
-        run_dir = Path(run_config["project_root"]) / "runs" / run_config["run_id"]
+        run_dir = Path(run_config["run_dir"])
         eval_dir = run_dir / "run-eval"
-        metrics = collect_metrics(eval_dir)
+        metrics = collect_metrics(eval_dir, run_id=run_config["run_id"])
         (run_dir / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
         write_manifest(run_dir, run_config, metrics)
         try:

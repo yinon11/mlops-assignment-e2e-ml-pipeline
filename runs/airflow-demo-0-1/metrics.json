@@ -8,8 +8,7 @@
   "error_instances": 0,
   "resolve_rate": 1.0,
   "report_files": [
-    "/home/ubuntu/work/mlops-assignment-e2e-ml-pipeline/runs/airflow-demo-0-1/run-eval/reports/nebius__moonshotai__Kimi-K2.6.airflow-demo-0-1.json",
-    "/home/ubuntu/work/mlops-assignment-e2e-ml-pipeline/runs/airflow-demo-0-1/run-eval/reports/nebius__moonshotai__Kimi-K2.6.demo-slice-0-1.json"
+    "run-eval/reports/nebius__moonshotai__Kimi-K2.6.airflow-demo-0-1.json"
   ],
   "resolved_ids": [
     "astropy__astropy-12907"

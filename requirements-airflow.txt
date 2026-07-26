@@ -1,0 +1,4 @@
+# Kept compatible with the MLflow 2.x server in docker-compose.yaml
+mlflow>=2.19.0,<3
+mini-swe-agent>=2.4.1
+swebench>=4.1.0

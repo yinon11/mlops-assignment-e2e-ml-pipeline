@@ -137,18 +137,26 @@ def run_agent_batch(run_config: dict[str, Any], run_dir: Path) -> Path:
 
 
 def run_swebench_eval(run_config: dict[str, Any], preds_path: Path, run_dir: Path) -> Path:
-    """Run SWE-bench evaluation against preds.json into run-eval/."""
+    """Run SWE-bench evaluation against preds.json into run-eval/.
+
+    Artifacts are scoped to this run_id only — we never copy the full shared
+    project-root logs/run_evaluation tree (that accumulates across runs).
+    """
     project_root = Path(run_config["project_root"])
+    run_id = run_config["run_id"]
     eval_dir = run_dir / "run-eval"
     logs_dir = eval_dir / "logs"
     reports_dir = eval_dir / "reports"
+
+    # Fresh per-run eval dirs so prior runs cannot leak in.
+    if logs_dir.exists():
+        shutil.rmtree(logs_dir)
+    if reports_dir.exists():
+        shutil.rmtree(reports_dir)
     logs_dir.mkdir(parents=True, exist_ok=True)
     reports_dir.mkdir(parents=True, exist_ok=True)
 
     env = _load_dotenv(project_root)
-    # Keep evaluation artifacts under the run directory.
-    env["SWEBENCH_LOG_DIR"] = str(logs_dir)
-
     cmd = [
         "uv",
         "run",
@@ -162,33 +170,59 @@ def run_swebench_eval(run_config: dict[str, Any], preds_path: Path, run_dir: Pat
         "--max_workers",
         str(run_config["workers"]),
         "--run_id",
-        run_config["run_id"],
+        run_id,
     ]
+    # SWE-bench writes logs/run_evaluation/<run_id>/... and an aggregate
+    # report JSON into the process CWD. Use project_root so uv/venv resolve,
+    # then copy only this run_id's subtree into the run folder.
     subprocess.run(cmd, cwd=project_root, env=env, check=True)
 
-    # Collect aggregate report JSON written to CWD by swebench (includes run_id in name).
-    for path in project_root.glob(f"*{run_config['run_id']}*.json"):
+    # Aggregate report for this run only (filename contains run_id).
+    for path in project_root.glob(f"*{run_id}*.json"):
         if path.is_file() and path.parent == project_root:
             shutil.copy2(path, reports_dir / path.name)
+            # Remove from CWD so later runs don't trip over stale reports.
+            path.unlink(missing_ok=True)
 
-    # Also copy default logs/run_evaluation tree if present in project root.
-    default_logs = project_root / "logs" / "run_evaluation"
-    if default_logs.exists():
-        dest = logs_dir / "run_evaluation"
+    # Copy only this run_id's log subtree (not the whole shared logs tree).
+    src_run_logs = project_root / "logs" / "run_evaluation" / run_id
+    if src_run_logs.exists():
+        dest = logs_dir / "run_evaluation" / run_id
+        dest.parent.mkdir(parents=True, exist_ok=True)
         if dest.exists():
             shutil.rmtree(dest)
-        shutil.copytree(default_logs, dest)
+        shutil.copytree(src_run_logs, dest)
+        shutil.rmtree(src_run_logs, ignore_errors=True)
 
     return eval_dir
 
 
-def collect_metrics(eval_dir: Path) -> dict[str, Any]:
-    """Parse SWE-bench report JSON into a compact metrics dict."""
+def collect_metrics(eval_dir: Path, run_id: str | None = None) -> dict[str, Any]:
+    """Parse SWE-bench report JSON into a compact metrics dict.
+
+    When run_id is provided, only aggregate reports whose filename contains
+    that run_id are considered (avoids cross-run contamination).
+    """
     reports_dir = eval_dir / "reports"
     report_files = sorted(reports_dir.glob("*.json"))
+    if run_id:
+        scoped = [p for p in report_files if run_id in p.name]
+        if scoped:
+            report_files = scoped
     if not report_files:
-        # Fall back to nested report.json files under logs.
-        report_files = sorted((eval_dir / "logs").rglob("report.json"))
+        # Fall back to nested report.json files under this run's logs only.
+        log_root = eval_dir / "logs"
+        if run_id and (log_root / "run_evaluation" / run_id).exists():
+            report_files = sorted((log_root / "run_evaluation" / run_id).rglob("report.json"))
+        else:
+            report_files = sorted(log_root.rglob("report.json"))
+
+    report_files_out: list[str] = []
+    for p in report_files:
+        try:
+            report_files_out.append(str(p.relative_to(eval_dir.parent)))
+        except ValueError:
+            report_files_out.append(str(p))
 
     metrics: dict[str, Any] = {
         "total_instances": 0,
@@ -199,7 +233,7 @@ def collect_metrics(eval_dir: Path) -> dict[str, Any]:
         "empty_patch_instances": 0,
         "error_instances": 0,
         "resolve_rate": 0.0,
-        "report_files": [str(p) for p in report_files],
+        "report_files": report_files_out,
     }
 
     # Prefer aggregate reports (contain total_instances) over per-instance report.json.
