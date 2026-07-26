@@ -126,6 +126,7 @@ instance `astropy__astropy-12907`.
 | `airflow-demo-0-1` | Airflow DAG `evaluate_agent` (`manual__2026-07-25T11:32:28.705836+00:00`, **success**) | **1 / 1** | `runs/airflow-demo-0-1/` |
 | `local-demo-0-1` | Airflow DAG `evaluate_agent`, run locally (`manual__2026-07-26T05:03:57.173352+00:00`, **success**, 00:03:22) | **1 / 1** | `runs/local-demo-0-1/` |
 | `s3-demo-0-1` | CLI, with object-storage upload | **1 / 1** | `runs/s3-demo-0-1/` + `s3://mlops-runs/s3-demo-0-1/` |
+| `docker-demo-0-1` | Airflow DAG, **DockerOperator path** (`use_docker=true`, `manual__2026-07-26T05:31:50.800588+00:00`, **success**, 00:02:38) | **1 / 1** | `runs/docker-demo-0-1/` + `s3://mlops-runs/docker-demo-0-1/` |
 
 MLflow experiment: `evaluate-agent`.  
 Example MLflow run id (CLI): `c64283edd6724447ae9348ad1666186f`.
@@ -144,6 +145,12 @@ Airflow graph view of run `local-demo-0-1`: all four tasks green, run state **Su
 MLflow experiment `evaluate-agent` with three runs and their `resolve_rate` /
 `resolved_instances` / `unresolved_instances` metrics.
 
+![Airflow DAG run via DockerOperator](screenshots/airflow_dag_docker.png)
+
+Run `docker-demo-0-1` with `use_docker=true`: the branch task routed execution to
+`run_agent_docker` / `run_eval_docker` (DockerOperator, green); the subprocess
+tasks were skipped.
+
 ## Rerun by run-id
 
 1. Re-trigger with the same `run_id` (or copy params from `runs/<run-id>/config.json`).
@@ -159,7 +166,14 @@ uv run python scripts/run_evaluate_pipeline.py --skip-agent --run-id demo-slice-
 - Retry/timeout policy: every task retries twice with exponential backoff (1 min base);
   `run_agent` has a 2 h execution timeout, `run_eval` 1 h, `prepare_run` and
   `summarize_and_log` 15 min each.
-- Agent/eval still use `uv run` subprocesses (not `DockerOperator` yet). SWE-bench
-  still launches per-instance Docker environments; compose mounts the host Docker socket.
+- Two execution paths for agent/eval, selected by the `use_docker` DAG param:
+  the default `uv run` subprocess tasks, or `run_agent_docker` / `run_eval_docker`
+  (`DockerOperator`, image `mlops-agent:latest` built from the root `Dockerfile`).
+  A branch task picks the path per run; `summarize_and_log` joins with
+  `trigger_rule="none_failed_min_one_success"`. The docker pair bind-mounts the
+  project (host path via `MLOPS_HOST_PROJECT_ROOT`) and the Docker socket, since
+  SWE-bench launches per-instance sibling containers either way.
+- The DockerOperator path is defined only when `apache-airflow-providers-docker`
+  is importable, so deployments without it still parse the DAG (subprocess path only).
 - Batch CLI has no `--cost-limit` (only `swebench-single`); the param is logged for provenance.
 - Root `Dockerfile` is the assignment agent image; `Dockerfile.airflow` is the compose image.

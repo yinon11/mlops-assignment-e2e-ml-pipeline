@@ -25,9 +25,12 @@ export MLFLOW_BACKEND_STORE_URI="${MLFLOW_BACKEND_STORE_URI:-sqlite:///${ROOT}/m
 mkdir -p "$AIRFLOW_HOME"
 echo '{"admin": "admin"}' > "$AIRFLOW_HOME/simple_auth_manager_passwords.json.generated"
 
+# Extra deps so tasks can log to MLflow, upload to S3, and use DockerOperator.
+AIRFLOW_CMD="uv tool run --with mlflow --with boto3 --with apache-airflow-providers-docker apache-airflow standalone"
+
 # Ensure docker group is available for SWE-bench containers when possible.
 if groups | grep -q '\bdocker\b'; then
-  exec uv tool run apache-airflow standalone
+  exec $AIRFLOW_CMD
 else
-  exec sg docker -c "uv tool run apache-airflow standalone"
+  exec sg docker -c "$AIRFLOW_CMD"
 fi

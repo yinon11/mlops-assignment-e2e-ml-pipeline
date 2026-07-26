@@ -23,6 +23,8 @@ SWE-bench/
 !/runs/local-demo-0-1/**
 !/runs/s3-demo-0-1/
 !/runs/s3-demo-0-1/**
+!/runs/docker-demo-0-1/
+!/runs/docker-demo-0-1/**
 
 /mlruns/
 /mlartifacts/

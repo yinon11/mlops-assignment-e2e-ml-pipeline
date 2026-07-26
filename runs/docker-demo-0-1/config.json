@@ -1,0 +1,14 @@
+{
+  "run_id": "docker-demo-0-1",
+  "subset": "verified",
+  "split": "test",
+  "workers": 1,
+  "model": "nebius/moonshotai/Kimi-K2.6",
+  "task_slice": "0:1",
+  "cost_limit": 0.0,
+  "dataset_name": "princeton-nlp/SWE-bench_Verified",
+  "project_root": "/home/yinon11/nebius_assignment_missed",
+  "created_at": "2026-07-26T05:31:53.680190+00:00",
+  "mlflow_tracking_uri": "http://127.0.0.1:5000",
+  "mlflow_experiment": "evaluate-agent"
+}
