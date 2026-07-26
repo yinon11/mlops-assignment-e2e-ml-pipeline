@@ -95,8 +95,25 @@ reports whose filename contains that `run_id` are copied into the run folder.
 The shared project-root log tree is not bulk-copied (that previously caused
 cross-run contamination).
 
-`manifest.json` records `remote_artifact_uri: null` in easy mode; upload path
-would be `aws s3 sync runs/<run-id> s3://...` then log the URI to MLflow.
+## Object storage
+
+Run artifacts are uploaded to S3-compatible object storage after each run:
+
+- The Compose stack includes a **MinIO** service (`minio:9000`, console on `:9001`,
+  `minioadmin`/`minioadmin`); the Airflow containers get `AWS_*` credentials,
+  `AWS_S3_ENDPOINT_URL`, and `ARTIFACTS_BUCKET=mlops-runs` via the environment.
+- `pipeline/run_helpers.py::upload_run_to_s3` uploads the whole `runs/<run-id>/`
+  tree with boto3 (creating the bucket if needed) and returns the `s3://` URI.
+  It degrades to a no-op with a warning when `ARTIFACTS_BUCKET`/boto3 are absent,
+  so the pipeline works without object storage.
+- The URI is recorded as `remote_artifact_uri` in `manifest.json` and logged to
+  MLflow as the `artifact_uri` param.
+- Verified locally: run `s3-demo-0-1` uploaded 14 files to
+  `s3://mlops-runs/s3-demo-0-1/` (see `screenshots/object_storage_artifacts.png`).
+- Swapping MinIO for real AWS S3 is just unsetting `AWS_S3_ENDPOINT_URL` and
+  providing real credentials.
+
+![MinIO bucket with run artifacts](screenshots/object_storage_artifacts.png)
 
 ## Completed runs
 
@@ -108,6 +125,7 @@ instance `astropy__astropy-12907`.
 | `demo-slice-0-1` | CLI | **1 / 1** | `runs/demo-slice-0-1/` |
 | `airflow-demo-0-1` | Airflow DAG `evaluate_agent` (`manual__2026-07-25T11:32:28.705836+00:00`, **success**) | **1 / 1** | `runs/airflow-demo-0-1/` |
 | `local-demo-0-1` | Airflow DAG `evaluate_agent`, run locally (`manual__2026-07-26T05:03:57.173352+00:00`, **success**, 00:03:22) | **1 / 1** | `runs/local-demo-0-1/` |
+| `s3-demo-0-1` | CLI, with object-storage upload | **1 / 1** | `runs/s3-demo-0-1/` + `s3://mlops-runs/s3-demo-0-1/` |
 
 MLflow experiment: `evaluate-agent`.  
 Example MLflow run id (CLI): `c64283edd6724447ae9348ad1666186f`.

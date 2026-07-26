@@ -19,6 +19,7 @@ from pipeline.run_helpers import (
     prepare_run_dir,
     run_agent_batch,
     run_swebench_eval,
+    upload_run_to_s3,
     write_manifest,
 )
 
@@ -64,14 +65,32 @@ def main() -> int:
     (run_dir / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
     write_manifest(run_dir, run_config, metrics)
 
+    artifact_uri = None
+    try:
+        artifact_uri = upload_run_to_s3(run_dir, run_config)
+    except Exception as exc:  # noqa: BLE001
+        print(f"S3 upload failed (continuing): {exc}")
+    if artifact_uri:
+        write_manifest(run_dir, run_config, metrics, artifact_uri=artifact_uri)
+
     mlflow_run_id = None
     if not args.skip_mlflow:
         try:
-            mlflow_run_id = log_mlflow_run(run_config, metrics, run_dir)
+            mlflow_run_id = log_mlflow_run(run_config, metrics, run_dir, artifact_uri=artifact_uri)
         except Exception as exc:  # noqa: BLE001
             print(f"MLflow logging failed: {exc}")
 
-    print(json.dumps({"run_id": run_config["run_id"], "metrics": metrics, "mlflow_run_id": mlflow_run_id}, indent=2))
+    print(
+        json.dumps(
+            {
+                "run_id": run_config["run_id"],
+                "metrics": metrics,
+                "mlflow_run_id": mlflow_run_id,
+                "remote_artifact_uri": artifact_uri,
+            },
+            indent=2,
+        )
+    )
     return 0
 
 

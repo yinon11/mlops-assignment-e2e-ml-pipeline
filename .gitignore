@@ -21,6 +21,8 @@ SWE-bench/
 !/runs/airflow-demo-0-1/**
 !/runs/local-demo-0-1/
 !/runs/local-demo-0-1/**
+!/runs/s3-demo-0-1/
+!/runs/s3-demo-0-1/**
 
 /mlruns/
 /mlartifacts/

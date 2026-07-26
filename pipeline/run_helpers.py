@@ -289,7 +289,48 @@ def collect_metrics(eval_dir: Path, run_id: str | None = None) -> dict[str, Any]
     return metrics
 
 
-def write_manifest(run_dir: Path, run_config: dict[str, Any], metrics: dict[str, Any]) -> Path:
+def upload_run_to_s3(run_dir: Path, run_config: dict[str, Any]) -> str | None:
+    """Upload runs/<run-id>/ to S3-compatible storage. Returns s3:// URI or None.
+
+    Uses AWS_S3_ENDPOINT_URL when set (MinIO); plain AWS S3 when unset.
+    No-op with a warning when ARTIFACTS_BUCKET or boto3 is missing, so the
+    pipeline stays durable without object storage configured.
+    """
+    bucket = os.environ.get("ARTIFACTS_BUCKET")
+    endpoint = os.environ.get("AWS_S3_ENDPOINT_URL")
+    if not bucket:
+        print("ARTIFACTS_BUCKET not set; skipping object-storage upload.")
+        return None
+    try:
+        import boto3
+    except ImportError:
+        print("boto3 not installed; skipping object-storage upload.")
+        return None
+
+    s3 = boto3.client("s3", endpoint_url=endpoint)
+    try:
+        s3.head_bucket(Bucket=bucket)
+    except Exception:
+        s3.create_bucket(Bucket=bucket)
+
+    run_id = run_config["run_id"]
+    uploaded = 0
+    for file_path in sorted(run_dir.rglob("*")):
+        if file_path.is_file():
+            key = f"{run_id}/{file_path.relative_to(run_dir).as_posix()}"
+            s3.upload_file(str(file_path), bucket, key)
+            uploaded += 1
+    uri = f"s3://{bucket}/{run_id}/"
+    print(f"Uploaded {uploaded} artifact files to {uri}")
+    return uri
+
+
+def write_manifest(
+    run_dir: Path,
+    run_config: dict[str, Any],
+    metrics: dict[str, Any],
+    artifact_uri: str | None = None,
+) -> Path:
     """Write manifest.json pointing at key artifacts."""
     agent_dir = run_dir / "run-agent"
     eval_dir = run_dir / "run-eval"
@@ -318,8 +359,12 @@ def write_manifest(run_dir: Path, run_config: dict[str, Any], metrics: dict[str,
             "completed_instances": metrics.get("completed_instances"),
             "resolve_rate": metrics.get("resolve_rate"),
         },
-        "remote_artifact_uri": None,
-        "note": "Remote Object Storage upload not enabled in easy-mode; local runs/<run-id>/ is the source of truth.",
+        "remote_artifact_uri": artifact_uri,
+        "note": (
+            "Artifacts uploaded to S3-compatible object storage."
+            if artifact_uri
+            else "Object-storage upload not configured; local runs/<run-id>/ is the source of truth."
+        ),
     }
     path = run_dir / "manifest.json"
     path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
