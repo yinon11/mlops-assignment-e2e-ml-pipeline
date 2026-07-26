@@ -32,3 +32,5 @@ SWE-bench/
 AGENT_CONTEXT.md
 cloud-init.yaml
 *.traj.json
+# ...but committed run folders must stay self-contained, trajectories included.
+!/runs/*/run-agent/trajectories/**/*.traj.json

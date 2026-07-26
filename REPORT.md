@@ -134,6 +134,12 @@ Example MLflow run id (CLI): `c64283edd6724447ae9348ad1666186f`.
 `total_instances: 500` in the SWE-bench aggregate report is the **dataset size**,
 not the number of instances we evaluated (`submitted_instances` / `completed_instances` = 1).
 
+The three most recent runs carry full agent trajectories in
+`run-agent/trajectories/<instance-id>/`. The first two runs were executed on a
+Nebius VM that has since been deleted; their `.traj.json` files were not copied
+off it, so those two folders have trajectory directories without the per-instance
+trajectory JSON. Everything else in them is complete.
+
 ## Screenshots
 
 ![Airflow DAG run](screenshots/airflow_dag.png)

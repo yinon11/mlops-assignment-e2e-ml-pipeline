@@ -1,5 +1,18 @@
 # Home assignment: Evaluation pipeline for coding-agent experiments
 
+> ## Solution
+>
+> **The write-up is in [REPORT.md](REPORT.md)** — design, completed runs, screenshots, and trade-offs.
+>
+> - Pipeline: [`dags/evaluate_agent.py`](dags/evaluate_agent.py) (`prepare_run → run_agent → run_eval → summarize_and_log`), helpers in [`pipeline/run_helpers.py`](pipeline/run_helpers.py).
+> - Run artifacts: [`runs/`](runs/) — five completed runs, each folder self-contained.
+> - Deployment: [`run-airflow-standalone.sh`](run-airflow-standalone.sh) + [`run-mlflow.sh`](run-mlflow.sh) for easy mode, or [`docker-compose.yaml`](docker-compose.yaml) for the Airflow + MLflow + MinIO stack.
+> - Also implemented: retries/timeouts, an optional `DockerOperator` execution path (`use_docker` param), and S3-compatible artifact upload.
+>
+> Everything below this line is the original assignment brief.
+
+---
+
 **What**: Home assignment.
 
 **Where**: Nebius Academy course [AI Performance Engineering](https://academy.nebius.com/ai-engineering-il), MLOps module, lecture #6, "End-to-end ML pipeline".
